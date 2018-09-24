@@ -1,0 +1,50 @@
+body {
+    font-family: 'Rubik', sans-serif;
+    /* background-color:#6190E8; */
+    color:  #6190E8;
+  }
+  p {
+      margin-top: 0;
+      margin-bottom: 0;
+      font-size: 1.8em;
+  }
+
+  .fas {
+  color:rgb(255, 153, 0);
+  }
+
+  #footer {
+      width: 100%;
+  height: 28px;
+  position: absolute;
+  bottom: 0px; 
+  left: 0px; 
+  text-align: center;
+  font-size: 0.7em;
+  }
+
+  #searchAndSearchButton {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      padding: 20px;
+      background-color:#fff;
+  }
+
+  .Previous-Searches {
+  display: none;
+  }
+
+  #underlineBelowInput {
+  border-bottom: 1px solid #E0E0E0;
+      padding-bottom: 28px;
+  }
+
+  #site-logo {
+  font-weight: bold;
+  text-shadow: 2px 2px 4px #4b4b4b0e;
+  }
+  #jabStatusMemo{display: none;}
+  .note p, .note a{font-size:1em;}
+  .title{font-size:1.3rem;}
+  .card {border-left:none;border-right:none;}
