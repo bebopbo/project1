@@ -10,6 +10,7 @@ catch(e) {
 
 var jabMicInput = $('#jabMicInput');
 var jabStatusMemo = $('#jabStatusMemo');
+var previous_search_page = $('.Previous-Searches');
 var notesList = $('ul#notes');
 
 var noteContent = '';
@@ -44,6 +45,8 @@ console.log(event);
   var mobileRepeatBug = (current == 1 && transcript == event.results[0][0].transcript);
 
   if(!mobileRepeatBug) {
+    previous_search_page.hide();
+    $('#response_display').empty();
     // noteContent += transcript;
     noteContent = transcript;
     jabMicInput.val(noteContent);
@@ -163,7 +166,7 @@ console.log(event);
       }
       
       //readOutLoud("OK Jabit is searching for "+ obj);
-      console.log("OK Jabit is searching for '"+ searchQuery + "'");
+      console.log("OK Jabit is searching for '" + searchQuery + "'");
     }
     
 
@@ -191,7 +194,7 @@ recognition.onspeechend = function() {
 recognition.onerror = function(event) {
   if(event.error == 'no-speech') {
     jabStatusMemo.text('No speech was detected. Try again.').show().fadeOut(5000);
-    readOutLoud('No speech was detected. Try again.');
+    //readOutLoud('No speech was detected. Try again.');
   };
 }
 
@@ -200,9 +203,28 @@ recognition.onerror = function(event) {
 /*-----------------------------
       App buttons and input 
 ------------------------------*/
+jabMicInput.on('click',function(){
+  previous_search_page.show().addClass('active');
+})
 $('#start-record-btn').on('click', function(e) {
+  var sound = document.getElementById("jab_start");
+  sound.play();
+
   if (noteContent.length) { noteContent += ' ';}
   recognition.start();
+  
+  // var mp3=document.createElement("embed");
+  // mp3.setAttribute('id', 'jab_start');
+  // mp3.setAttribute("src",'assets/mp3/JABit-sound-fx.mp3');
+  // mp3.setAttribute("hidden","true");
+  // mp3.setAttribute("volume","100");
+  // mp3.setAttribute("autostart","true");
+  // mp3.setAttribute("loop",false);
+  // document.body.appendChild(mp3);
+
+  // var mp3 = $("<embed id='jab_start' src='assets/mp3/JABit-sound-fx.mp3' hidden='true' volume='100' autostart='true' loop='false'></embed>");
+  // $('body').append(mp3);
+  // setTimeout(function(){$('#jab_start').remove();},3000);
 });
 
 /*$('#pause-record-btn').on('click', function(e) {
@@ -213,29 +235,21 @@ $('#start-record-btn').on('click', function(e) {
 // Sync the text inside the text area with the noteContent variable.
 jabMicInput.on('input', function() {noteContent = $(this).val();})
 
-$('#save-note-btn').on('click', function(e) {
+$('#delete-all-btn').on('click', function(e) {
   recognition.stop();
-  if(!noteContent.length) {
-    jabStatusMemo.text('Could not save empty note. Please add a message to your note.').show().fadeOut(5000);
-  } else {
-    saveNote(new Date().toLocaleString(), noteContent);
-    noteContent = '';
-    renderNotes(getAllNotes());
-    jabMicInput.val('');
-    jabStatusMemo.text('Note saved successfully.').show().fadeOut(5000);
-  }
-})
+  deleteAllNotes();
+});
 
 notesList.on('click', function(e) {
   e.preventDefault();
   var target = $(e.target);
   // Listen to the selected note.
-  if(target.hasClass('listen-note')) {
+  if(target.hasClass('search-history')) {
     var content = target.closest('.note').find('.content').text();
     readOutLoud(content);
   }
   // Delete note.
-  if(target.hasClass('delete-note')) {
+  if(target.hasClass('delete-history')) {
     var dateTime = target.siblings('.date').text();  
     deleteNote(dateTime);
     target.closest('.note').remove();
@@ -264,31 +278,49 @@ function renderNotes(notes) {
     notes.forEach(function(note) {
       html+= `<li class="note">
         <p class="header">
-          <p class="content">${note.content}</p>
+          <a href="#" class="search-history" title="Search again"><i class="fas fa-search"></i></a>
+          <a href="#" class="delete-history" title="Delete"><i class="far fa-trash-alt"></i></a>
+          <span class="content">${note.content}</span>
           <span class="date" style="display:none;">${note.date}</span>
-          <a href="#" class="listen-note" title="Listen to Note">[Listen]</a>
-          <a href="#" class="delete-note" title="Delete">[Delete]</a>
         </p>
       </li>`;    
     });
   }
   else {
-    html = '<li><p class="content">You don\'t have any notes yet.</p></li>';
+    html = '<li><p class="content" style="font-size:1rem;">You don\'t have any search history yet.</p></li>';
   }
   notesList.html(html);
 }
-function saveNote(dateTime, content) {localStorage.setItem('note-' + dateTime, content);}
+//SAVE NOTE
+function saveNote(dateTime, content) {localStorage.setItem('history-' + dateTime, content);}
+//GET NOTES FROM LOCAL STORAGE
 function getAllNotes() {
   var notes = [],key;
   for (var i = 0; i < localStorage.length; i++) {
     key = localStorage.key(i);
-    if(key.substring(0,5) == 'note-') {
+    if(key.substring(0,8) == 'history-') {
       notes.push({
-        date: key.replace('note-',''),
+        date: key.replace('history-',''),
         content: localStorage.getItem(localStorage.key(i))
       });
     } 
   }
   return notes;
 }
-function deleteNote(dateTime) {localStorage.removeItem('note-' + dateTime);}
+//DELETE ONE NOTE
+function deleteNote(dateTime) {localStorage.removeItem('history-' + dateTime);}
+//DELETE ALL
+function deleteAllNotes(){
+  var notes = []; // Array to hold the keys
+  // Iterate over localStorage and insert the keys that meet the condition into arr
+  for (var i = 0; i < localStorage.length; i++){
+      if (localStorage.key(i).substring(0,8) == 'history-') {
+        notes.push(localStorage.key(i));
+      }
+  }
+  // Iterate over arr and remove the items by key
+  for (var i = 0; i < notes.length; i++) {
+      localStorage.removeItem(notes[i]);
+  }
+  notesList.empty();
+}
