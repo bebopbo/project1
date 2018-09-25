@@ -15,46 +15,46 @@ var notesList = $('ul#notes');
 
 var noteContent = '';
 var jabit_flag = '';
-var ip_address = '';
-// Get all notes from previous sessions and display them.
+
+
+// Get all history from previous sessions and display them, but it's hidden by default.
 var notes = getAllNotes();
 renderNotes(notes);
 
 /*-----------------------------
       Voice Recognition 
 ------------------------------*/
-// If false, the recording will stop after a few seconds of silence.
-// When true, the silence period is longer (about 15 seconds),
-// allowing us to keep recording even when the user pauses. 
-recognition.continuous = true;
+// If false, stop after a few seconds of silence.
+// When true, stop after about 15 seconds.
+recognition.continuous = false;
 
-// This block is called every time the Speech APi captures a line. 
+//RESULT
 recognition.onresult = function(event) {
-console.log(event);
-  // event is a SpeechRecognitionEvent object.
-  // It holds all the lines we have captured so far. 
-  // We only need the current one.
+  //console.log(event);
   var current = event.resultIndex;
-
   // Get a transcript of what was said.
-  var transcript = event.results[current][0].transcript;
+  var voice_command = event.results[current][0].transcript;
+  var check_error = (current == 1 && voice_command == event.results[0][0].transcript);
 
-  // Add the current transcript to the contents of our Note.
-  // There is a weird bug on mobile, where everything is repeated twice.
-  // There is no official solution so far so we have to handle an edge case.
-  var mobileRepeatBug = (current == 1 && transcript == event.results[0][0].transcript);
-
-  if(!mobileRepeatBug) {
+  if(!check_error) {
+    //ONCE RESULT RECIEVED FROM API, 
+    //1. HIDE PREVIOUS HISTORY SCREEN
     previous_search_page.hide();
+    //2. EMPTY PREVIOUS RESULTS
     $('#response_display').empty();
-    // noteContent += transcript;
-    noteContent = transcript;
+    
+    noteContent = voice_command;// noteContent += voice_command;
+    //ADD VOICE COMMAND TO INPUT BOX
     jabMicInput.val(noteContent);
+    //STOP RECOGNITION 
     recognition.stop();
+
     if(noteContent != ""){
+      //SAVE NEW HISTORY INTO LOCAL STORAGE
       saveNote(new Date().toLocaleString(), noteContent);
+      //UPDATE PREVIOUS HISTORY SCREEN, BUT IT'S HIDDEN UNTIL USER CLICK THE INPUT BOX
       renderNotes(getAllNotes());
-      var remove_words = ['find', 'me', 'search', 'look', 'for', 'amazon', 'on','in'];
+      
       var token = noteContent.split(" ");
       console.log(token);
 
@@ -67,6 +67,7 @@ console.log(event);
         console.log("search from amazon api");
         jabit_flag = "amazon";
       }
+
       //WEATHER API
       else if(token.indexOf("weather")!= -1){
         console.log("search from weather api");
@@ -74,21 +75,7 @@ console.log(event);
         var default_location = "300 aritum dr, somerset, NJ";
         var location = '';
 
-        var searchQuery = '';
-        for(var i = 0; i < token.length; i++){
-          for(var j = 0; j < remove_words.length; j++){
-            if(token[i] == remove_words[j]){
-
-            }else{
-              searchQuery += token[i];
-              if(i != token.length+1){
-                searchQuery += ' ';
-              }
-              break;
-            }
-          }
-        }
-        searchQuery = $.trim(searchQuery);
+        var searchQuery = getSearchQuery(token);
 
         var find_index_weather = $.inArray("weather",token);
         for(var i = find_index_weather + 1 ; i < token.length; i++){
@@ -112,33 +99,13 @@ console.log(event);
           console.log("lng: " + response.results[0].locations[0].latLng.lng); 
         });
       }
+
       //GOOGLE API WITH BING SEARCH ENGINE
       else{
         console.log("search from GOOGLE & BING api...");
         jabit_flag = "google";
 
-        var searchQuery = '';
-        for(var i = 0; i < token.length; i++){
-          for(var j = 0; j < remove_words.length; j++){
-            if(token[i] == remove_words[j]){
-
-            }else{
-              searchQuery += token[i];
-              if(i != token.length+1){
-                searchQuery += ' ';
-              }
-              break;
-            }
-          }
-        }
-        searchQuery = $.trim(searchQuery);
-  
-        // for(var i=0; i< remove_words.length; i++){//REMOVE COMMANDS
-        //   searchQuery = searchQuery.replace(remove_words[i],"");  
-        // }
-        //UPDATE ORIGINAL STRING TO UPDATE INTO INPUTBOX
-        //noteContent = searchQuery;
-  
+        var searchQuery = getSearchQuery(token);
         console.log(searchQuery);
 
         $.get("https://www.googleapis.com/customsearch/v1?key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&cx=014686825535238989090:jwmwr2rnvos&q=" + searchQuery, function(response){
@@ -149,6 +116,7 @@ console.log(event);
             //CREATE TITLE
             var title = $('<div class="title ">');
             title.html(response.items[i].htmlTitle);
+            //CREATE CONTENT
             var content = $('<div class="content text-dark">');
             content.html(response.items[i].htmlSnippet);
 
@@ -164,27 +132,14 @@ console.log(event);
           }
         })
       }
-      
-      //readOutLoud("OK Jabit is searching for "+ obj);
-      console.log("OK Jabit is searching for '" + searchQuery + "'");
+      readOutLoud("OK Jabit is searching for "+ searchQuery);
     }
-    
-
-    // Reset variables and update UI.
-    //noteContent = '';
-    //renderNotes(getAllNotes());
-    //jabMicInput.val('');
-    //jabStatusMemo.text('Note saved successfully.');
-
-    //save into array and choose which API to use
-    //noteContent
   }
 };
 
 recognition.onstart = function() { 
   jabStatusMemo.text('Voice recognition activated. Try speaking into the microphone.').show().fadeOut(5000);
-  //readOutLoud('OK, I\'m ready.');
-  console.log('OK, I\'m ready.');
+  readOutLoud('OK, I\'m ready.');
 }
 
 recognition.onspeechend = function() {
@@ -194,55 +149,33 @@ recognition.onspeechend = function() {
 recognition.onerror = function(event) {
   if(event.error == 'no-speech') {
     jabStatusMemo.text('No speech was detected. Try again.').show().fadeOut(5000);
-    //readOutLoud('No speech was detected. Try again.');
+    readOutLoud('No speech was detected. Try again.');
   };
 }
 
 
 
-/*-----------------------------
-      App buttons and input 
-------------------------------*/
-jabMicInput.on('click',function(){
-  previous_search_page.show().addClass('active');
-})
+//CLICK BUTTONS AND ACTION
 $('#start-record-btn').on('click', function(e) {
   var sound = document.getElementById("jab_start");
   sound.play();
 
   if (noteContent.length) { noteContent += ' ';}
   recognition.start();
-  
-  // var mp3=document.createElement("embed");
-  // mp3.setAttribute('id', 'jab_start');
-  // mp3.setAttribute("src",'assets/mp3/JABit-sound-fx.mp3');
-  // mp3.setAttribute("hidden","true");
-  // mp3.setAttribute("volume","100");
-  // mp3.setAttribute("autostart","true");
-  // mp3.setAttribute("loop",false);
-  // document.body.appendChild(mp3);
-
-  // var mp3 = $("<embed id='jab_start' src='assets/mp3/JABit-sound-fx.mp3' hidden='true' volume='100' autostart='true' loop='false'></embed>");
-  // $('body').append(mp3);
-  // setTimeout(function(){$('#jab_start').remove();},3000);
 });
-
-/*$('#pause-record-btn').on('click', function(e) {
-  recognition.stop();
-  jabStatusMemo.text('Voice recognition paused.');
-});*/
-
-// Sync the text inside the text area with the noteContent variable.
-jabMicInput.on('input', function() {noteContent = $(this).val();})
-
+$('#close-history-btn').on('click', function(e) {
+  previous_search_page.hide();
+})
 $('#delete-all-btn').on('click', function(e) {
   recognition.stop();
   deleteAllNotes();
 });
-
+jabMicInput.on('click',function(){
+  previous_search_page.show();
+});
 notesList.on('click', function(e) {
   e.preventDefault();
-  var target = $(e.target);
+  var target = $(e.target).parent();
   // Listen to the selected note.
   if(target.hasClass('search-history')) {
     var content = target.closest('.note').find('.content').text();
@@ -256,22 +189,43 @@ notesList.on('click', function(e) {
   }
 });
 
-/*-----------------------------
-      Speech Synthesis 
-------------------------------*/
+// Sync the text inside the text area with the noteContent variable.
+jabMicInput.on('input', function() {noteContent = $(this).val();})
+
+//TRIM VOICE COMMAND AS CONCISE SEARCH QUERY
+function getSearchQuery(token){
+  var searchQuery='';
+  var remove_words = ['find', 'me', 'search', 'look', 'for', 'amazon', 'on','in'];
+  for(var i = 0; i < token.length; i++){
+    for(var j = 0; j < remove_words.length; j++){
+      if(token[i] == remove_words[j]){
+
+      }else{
+        searchQuery += token[i];
+        if(i != token.length+1){
+          searchQuery += ' ';
+        }
+        break;
+      }
+    }
+  }
+  searchQuery = $.trim(searchQuery);
+  return searchQuery;
+}
+//SPEAK OUT
 function readOutLoud(message) {
+  /*
   var speech = new SpeechSynthesisUtterance();
   // Set the text and voice attributes.
   speech.text = message;
   speech.volume = 1;
   speech.rate = 1;
   speech.pitch = 1;
-  window.speechSynthesis.speak(speech);
+  window.speechSynthesis.speak(speech);*/
+  console.log(message);
 }
 
-/*-----------------------------
-      Helper Functions 
-------------------------------*/
+//DISPLAY ALL HISTORIES
 function renderNotes(notes) {
   var html = '';
   if(notes.length) {
@@ -323,4 +277,5 @@ function deleteAllNotes(){
       localStorage.removeItem(notes[i]);
   }
   notesList.empty();
+  notesList.html('<li><p class="content" style="font-size:1rem;">You don\'t have any search history yet.</p></li>');
 }
