@@ -14,12 +14,12 @@ var previous_search_page = $('.Previous-Searches');
 var notesList = $('ul#notes');
 
 var noteContent = '';
-var jabit_flag = '';
+
 
 
 // Get all history from previous sessions and display them, but it's hidden by default.
 var notes = getAllNotes();
-renderNotes(notes);
+renderHistory(notes);
 
 /*-----------------------------
       Voice Recognition 
@@ -37,12 +37,6 @@ recognition.onresult = function(event) {
   var check_error = (current == 1 && voice_command == event.results[0][0].transcript);
 
   if(!check_error) {
-    //ONCE RESULT RECIEVED FROM API, 
-    //1. HIDE PREVIOUS HISTORY SCREEN
-    previous_search_page.hide();
-    //2. EMPTY PREVIOUS RESULTS
-    $('#response_display').empty();
-    
     noteContent = voice_command;// noteContent += voice_command;
     //ADD VOICE COMMAND TO INPUT BOX
     jabMicInput.val(noteContent);
@@ -50,89 +44,7 @@ recognition.onresult = function(event) {
     recognition.stop();
 
     if(noteContent != ""){
-      //SAVE NEW HISTORY INTO LOCAL STORAGE
-      saveNote(new Date().toLocaleString(), noteContent);
-      //UPDATE PREVIOUS HISTORY SCREEN, BUT IT'S HIDDEN UNTIL USER CLICK THE INPUT BOX
-      renderNotes(getAllNotes());
-      
-      var token = noteContent.split(" ");
-      console.log(token);
-
-      //jabit what's the weather today? -> iplocation to get city,state, country -> weather api
-      //jabit find ...... in amazon -> amazon
-      //jabit ........ - > gogole -> bing
-
-      //AMAZON API
-      if(token[token.length-1] == "amazon"){
-        console.log("search from amazon api");
-        jabit_flag = "amazon";
-      }
-
-      //WEATHER API
-      else if(token.indexOf("weather")!= -1){
-        console.log("search from weather api");
-        jabit_flag = "weather";
-        var default_location = "300 aritum dr, somerset, NJ";
-        var location = '';
-
-        var searchQuery = getSearchQuery(token);
-
-        var find_index_weather = $.inArray("weather",token);
-        for(var i = find_index_weather + 1 ; i < token.length; i++){
-          if(token[i] != "in"){
-            location += token[i];
-            if(i != token.length+1){
-              location += ' ';
-            }
-          }
-        }
-        location = location.trim();
-        if(location !="today" && location!="tomorrow" && location!="current" && location!=""){
-        }else{
-          location = default_location;
-        }
-        
-        //SPECIFIC LOCATION
-        $.get("http://www.mapquestapi.com/geocoding/v1/address?key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&location="+encodeURIComponent(location), function (response){
-          console.log(location);
-          console.log("lat: " + response.results[0].locations[0].latLng.lat); 
-          console.log("lng: " + response.results[0].locations[0].latLng.lng); 
-        });
-      }
-
-      //GOOGLE API WITH BING SEARCH ENGINE
-      else{
-        console.log("search from GOOGLE & BING api...");
-        jabit_flag = "google";
-
-        var searchQuery = getSearchQuery(token);
-        console.log(searchQuery);
-
-        $.get("https://www.googleapis.com/customsearch/v1?key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&cx=014686825535238989090:jwmwr2rnvos&q=" + searchQuery, function(response){
-          // console.log(response);
-          // console.log(response.items.length);  
-          for(var i=0; i < response.items.length; i++){
-            var item_block = $('<div class="card py-3">');
-            //CREATE TITLE
-            var title = $('<div class="title ">');
-            title.html(response.items[i].htmlTitle);
-            //CREATE CONTENT
-            var content = $('<div class="content text-dark">');
-            content.html(response.items[i].htmlSnippet);
-
-            //CREATE LINK
-            var link = $('<a class="link">');
-            //ADD URL IN <A> TAG
-            link.attr('href', response.items[i].link).attr('target','_blank');
-            link.html(title);
-
-            item_block.append(link, content);
-            //APPEND EVERTHING IN DISPLAY
-            $('#response_display').append(item_block);
-          }
-        })
-      }
-      readOutLoud("OK Jabit is searching for "+ searchQuery);
+      renderResult(noteContent, "voice");
     }
   }
 };
@@ -170,31 +82,69 @@ $('#delete-all-btn').on('click', function(e) {
   recognition.stop();
   deleteAllNotes();
 });
-jabMicInput.on('click',function(){
+jabMicInput.on('keyup', function(e){
+  var code = e.which;
+  if(code == 13){
+    e.preventDefault();
+    var content = $.trim(jabMicInput.val());
+    if(content === ""){
+      jabStatusMemo.text('Please enter to search or click the microphone button.').show().fadeOut(5000);
+      jabMicInput.focus();
+      return false;
+    }else{
+      renderResult(content, "type");
+    }
+  }
+});
+jabMicInput.on('click', function(){
   previous_search_page.show();
 });
 notesList.on('click', function(e) {
   e.preventDefault();
-  var target = $(e.target).parent();
-  // Listen to the selected note.
-  if(target.hasClass('search-history')) {
-    var content = target.closest('.note').find('.content').text();
-    readOutLoud(content);
+  var target = $(e.target);
+  if(target.hasClass('content')) {
+    var content = target.text();
+    //ADD/REPLACE INPUT BOX WITH NEW CONTENT
+    jabMicInput.val(content);
+    renderResult(content, "search-history");
+  }else{
+    target=target.parent();
+    // re-search to the selected history.
+    if(target.hasClass('search-history')) {
+      var content = target.closest('.note').find('.content').text();
+      //ADD/REPLACE INPUT BOX WITH NEW CONTENT
+      jabMicInput.val(content);
+      renderResult(content, "search-history");
+    }
+    // Delete history.
+    if(target.hasClass('delete-history')) {
+      var dateTime = target.siblings('.date').text();  
+      deleteNote(dateTime);
+      target.closest('.note').remove();
+    }
   }
-  // Delete note.
-  if(target.hasClass('delete-history')) {
-    var dateTime = target.siblings('.date').text();  
-    deleteNote(dateTime);
-    target.closest('.note').remove();
-  }
+  
 });
 
 // Sync the text inside the text area with the noteContent variable.
 jabMicInput.on('input', function() {noteContent = $(this).val();})
 
+
+//SPEAK OUT
+function readOutLoud(message) {
+  /*
+  var speech = new SpeechSynthesisUtterance();
+  // Set the text and voice attributes.
+  speech.text = message;
+  speech.volume = 1;
+  speech.rate = 1;
+  speech.pitch = 1;
+  window.speechSynthesis.speak(speech);*/
+  console.log(message);
+}
 //TRIM VOICE COMMAND AS CONCISE SEARCH QUERY
 function getSearchQuery(token){
-  var searchQuery='';
+  var searchQuery = '';
   var remove_words = ['find', 'me', 'search', 'look', 'for', 'amazon', 'on','in'];
   for(var i = 0; i < token.length; i++){
     for(var j = 0; j < remove_words.length; j++){
@@ -212,21 +162,108 @@ function getSearchQuery(token){
   searchQuery = $.trim(searchQuery);
   return searchQuery;
 }
-//SPEAK OUT
-function readOutLoud(message) {
-  /*
-  var speech = new SpeechSynthesisUtterance();
-  // Set the text and voice attributes.
-  speech.text = message;
-  speech.volume = 1;
-  speech.rate = 1;
-  speech.pitch = 1;
-  window.speechSynthesis.speak(speech);*/
-  console.log(message);
-}
 
+/***********************
+ * DISPLAY
+ ***********************/
+//DISPLAY RESULT
+function renderResult(noteContent, mode){
+  //ONCE RESULT RECIEVED FROM API, 
+  //1. HIDE PREVIOUS HISTORY SCREEN
+  previous_search_page.hide();
+  //2. EMPTY PREVIOUS RESULTS
+  $('#response_display').empty();
+  
+  var jabit_flag = '';
+  if(mode === "voice" || mode === "type"){
+  //SAVE NEW HISTORY INTO LOCAL STORAGE
+  saveHistory(new Date().toLocaleString(), noteContent);
+  //UPDATE PREVIOUS HISTORY SCREEN, BUT IT'S HIDDEN UNTIL USER CLICK THE INPUT BOX
+  renderHistory(getAllNotes());
+  }else if(mode === "search-history"){
+
+  }
+  var token = noteContent.split(" ");
+  console.log(token);
+
+  //jabit what's the weather today? -> iplocation to get city,state, country -> weather api
+  //jabit find ...... in amazon -> amazon
+  //jabit ........ - > gogole -> bing
+
+  //AMAZON API
+  if(token[token.length-1] == "amazon"){
+    console.log("search from amazon api");
+    jabit_flag = "amazon";
+  }
+
+  //WEATHER API
+  else if(token.indexOf("weather")!= -1){
+    console.log("search from weather api");
+    jabit_flag = "weather";
+    var default_location = "300 aritum dr, somerset, NJ";
+    var location = '';
+
+    var searchQuery = getSearchQuery(token);
+
+    var find_index_weather = $.inArray("weather",token);
+    for(var i = find_index_weather + 1 ; i < token.length; i++){
+      if(token[i] != "in"){
+        location += token[i];
+        if(i != token.length+1){
+          location += ' ';
+        }
+      }
+    }
+    location = location.trim();
+    if(location !="today" && location!="tomorrow" && location!="current" && location!=""){
+    }else{
+      location = default_location;
+    }
+    
+    //SPECIFIC LOCATION
+    $.get("http://www.mapquestapi.com/geocoding/v1/address?key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&location="+encodeURIComponent(location), function (response){
+      console.log(location);
+      console.log("lat: " + response.results[0].locations[0].latLng.lat); 
+      console.log("lng: " + response.results[0].locations[0].latLng.lng); 
+    });
+  }
+
+  //GOOGLE API WITH BING SEARCH ENGINE
+  else{
+    console.log("search from GOOGLE & BING api...");
+    jabit_flag = "google";
+
+    var searchQuery = getSearchQuery(token);
+    console.log(searchQuery);
+
+    $.get("https://www.googleapis.com/customsearch/v1?key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&cx=014686825535238989090:jwmwr2rnvos&q=" + searchQuery, function(response){
+      // console.log(response);
+      // console.log(response.items.length);  
+      for(var i=0; i < response.items.length; i++){
+        var item_block = $('<div class="card py-3">');
+        //CREATE TITLE
+        var title = $('<div class="title ">');
+        title.html(response.items[i].htmlTitle);
+        //CREATE CONTENT
+        var content = $('<div class="content text-dark">');
+        content.html(response.items[i].htmlSnippet);
+
+        //CREATE LINK
+        var link = $('<a class="link">');
+        //ADD URL IN <A> TAG
+        link.attr('href', response.items[i].link).attr('target','_blank');
+        link.html(title);
+
+        item_block.append(link, content);
+        //APPEND EVERTHING IN DISPLAY
+        $('#response_display').append(item_block);
+      }
+    })
+  }
+  readOutLoud("OK Jabit is searching for "+ searchQuery);
+}
 //DISPLAY ALL HISTORIES
-function renderNotes(notes) {
+function renderHistory(notes) {
   var html = '';
   if(notes.length) {
     notes.forEach(function(note) {
@@ -245,8 +282,12 @@ function renderNotes(notes) {
   }
   notesList.html(html);
 }
+
+/************************
+ * LOCAL STORAGE
+ **********************/
 //SAVE NOTE
-function saveNote(dateTime, content) {localStorage.setItem('history-' + dateTime, content);}
+function saveHistory(dateTime, content) {localStorage.setItem('history-' + dateTime, content);}
 //GET NOTES FROM LOCAL STORAGE
 function getAllNotes() {
   var notes = [],key;
