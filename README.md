@@ -1,6 +1,4 @@
-# project1
-
-JABit!
+# JABit!
 
 The JABit Team
 Jin (JavaScript & implementation)
