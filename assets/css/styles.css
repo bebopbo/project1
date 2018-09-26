@@ -54,3 +54,15 @@ body {
   .note .content{cursor: pointer;}
   .title{font-size:1.3rem;}
   .card {border-left:none;border-right:none;}
+
+  #jabMicInput {
+    opacity: 0.6;
+  }
+
+  #main-body .card .card-header h5{
+    margin-right:auto;
+  }
+
+  #close-history-btn {
+      margin-right: 10px;
+  }
