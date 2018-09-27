@@ -12,7 +12,8 @@ var jabMicInput = $('#jabMicInput');
 var jabStatusMemo = $('#jabStatusMemo');
 var previous_search_page = $('.Previous-Searches');
 var notesList = $('ul#notes');
-
+var locationLat = '';
+var locationLng = '';
 var noteContent = '';
 
 
@@ -22,10 +23,9 @@ var notes = getAllNotes();
 renderHistory(notes);
 
 /*-----------------------------
-      Voice Recognition 
+*Voice Recognition 
 ------------------------------*/
-// If false, stop after a few seconds of silence.
-// When true, stop after about 15 seconds.
+
 recognition.continuous = false;
 
 //RESULT
@@ -145,19 +145,17 @@ function readOutLoud(message) {
 //TRIM VOICE COMMAND AS CONCISE SEARCH QUERY
 function getSearchQuery(token){
   var searchQuery = '';
-  var remove_words = ['find', 'me', 'search', 'look', 'for', 'amazon', 'on','in'];
-  for(var i = 0; i < token.length; i++){
-    for(var j = 0; j < remove_words.length; j++){
-      if(token[i] == remove_words[j]){
+  var remove_words = ['jabit', 'jabet', 'find', 'me', 'search', 'look', 'for', 'amazon', 'on', 'in'];
 
-      }else{
-        searchQuery += token[i];
-        if(i != token.length+1){
-          searchQuery += ' ';
-        }
-        break;
-      }
+  for(var i = 0; i < remove_words.length; i++){
+    var index = token.indexOf(remove_words[i]);
+    if(index > -1){
+      token.splice(index, 1);
     }
+  }
+  for(var i = 0; i < token.length; i++){
+    searchQuery += token[i];
+    if(i != token.length + 1){searchQuery += ' ';}
   }
   searchQuery = $.trim(searchQuery);
   return searchQuery;
@@ -184,6 +182,8 @@ function renderResult(noteContent, mode){
 
   }
   var token = noteContent.split(" ");
+  console.log("============================================");
+  console.log("1. Split a string of voice command ("+ noteContent +") and save into array");
   console.log(token);
 
   //jabit what's the weather today? -> iplocation to get city,state, country -> weather api
@@ -192,13 +192,13 @@ function renderResult(noteContent, mode){
 
   //AMAZON API
   if(token[token.length-1] == "amazon"){
-    console.log("search from amazon api");
+    console.log("Search from amazon api");
     jabit_flag = "amazon";
   }
 
   //WEATHER API
   else if(token.indexOf("weather")!= -1){
-    console.log("search from weather api");
+    console.log("--> USE WEATHER API");
     jabit_flag = "weather";
     var default_location = "300 aritum dr, somerset, NJ";
     var location = '';
@@ -219,24 +219,50 @@ function renderResult(noteContent, mode){
     }else{
       location = default_location;
     }
-    
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + location + ")");
+    console.log("3. CALL MAPQUEST API to get LAT, LNG");
     //SPECIFIC LOCATION
-    $.get("http://www.mapquestapi.com/geocoding/v1/address?key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&location="+encodeURIComponent(location), function (response){
-      console.log(location);
-      console.log("lat: " + response.results[0].locations[0].latLng.lat); 
-      console.log("lng: " + response.results[0].locations[0].latLng.lng); 
+    var mapquestapi_url = "http://www.mapquestapi.com/geocoding/v1/address?";
+    mapquestapi_url += "key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&";
+    mapquestapi_url += "location="+encodeURIComponent(location);
+    $.get(mapquestapi_url, function (response){
+      console.log("LAT: " + response.results[0].locations[0].latLng.lat); 
+      console.log("LNG: " + response.results[0].locations[0].latLng.lng); 
+      locationLat = response.results[0].locations[0].latLng.lat;
+      locationLng = response.results[0].locations[0].latLng.lng;
+      console.log("4. CALL DARK SKY API");
+      var darksky_url = "https://cors-anywhere.herokuapp.com/https://api.darksky.net/forecast/23581296777986e722945e1545c7a64f/";
+      darksky_url += locationLat + "," +locationLng;
+      $.ajax({
+        url: darksky_url,
+        type: 'GET',
+        crossDomain:true,
+        datatype: 'jsonp',
+        success: function(data) { 
+          console.log("5. RECIEVED RESPONSE AND PRINT WEATHER WIDGET");
+          console.log(data); 
+          $('#response_display').html('<iframe id="forecast_embed" frameborder="0" height="245" width="100%" src="//forecast.io/embed/#lat=' + data.latitude + '&lon=' + data.longitude + '&name=' + location + '(' + data.timezone + ')"></iframe>');
+        },
+        error: function() { console.log('Failed!'); },
+        
+      });
     });
   }
 
   //GOOGLE API WITH BING SEARCH ENGINE
   else{
-    console.log("search from GOOGLE & BING api...");
+    console.log("--> USE GOOGLE & BING API");
     jabit_flag = "google";
 
     var searchQuery = getSearchQuery(token);
-    console.log(searchQuery);
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + searchQuery + ")");
 
-    $.get("https://www.googleapis.com/customsearch/v1?key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&cx=014686825535238989090:jwmwr2rnvos&q=" + searchQuery, function(response){
+    var googleapis_url = "https://www.googleapis.com/customsearch/v1?";
+    googleapis_url += "key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&";
+    googleapis_url += "cx=014686825535238989090:jwmwr2rnvos&";
+    googleapis_url += "q=" + searchQuery;
+    $.get(googleapis_url, function(response){
+      console.log("3. RECIEVED RESPONSE AND PRINT OUT");
       // console.log(response);
       // console.log(response.items.length);  
       for(var i=0; i < response.items.length; i++){
@@ -260,7 +286,7 @@ function renderResult(noteContent, mode){
       }
     })
   }
-  readOutLoud("OK Jabit is searching for "+ searchQuery);
+  //readOutLoud("OK Jabit is searching for "+ searchQuery);
 }
 //DISPLAY ALL HISTORIES
 function renderHistory(notes) {
