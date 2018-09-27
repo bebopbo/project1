@@ -1,15 +1,19 @@
 # JABit!
 
-### The JABit Team
+
+### The JABit! Team
+
 Jin (JavaScript & implementation)
 Alex (HTML, CSS [UI Design])
 Brandon (APIs, JS, & Research)
+
 
 ### Key Features
 **1. Ease-of-Use**
 -----So easy a caveman can do it. Simply, click the microphone icon and allow mic access.
 From there, state your request and wait for result.
 That’s it! You just JAB’d it!
+
 
 **2. Simple, Elegant UI**
 -----Complementary colors for an eye-pleasing aesthetic
@@ -40,6 +44,7 @@ How does it work?
 Get Location (using MapQuest Geocode API)
 Grab location and pass it into Weather API
 Display user’s local weather
+
 
 ## JABit!'s Technologies 
 

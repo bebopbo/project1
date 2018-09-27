@@ -1,3 +1,5 @@
+console.log("V.1.1");
+
 try {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   var recognition = new SpeechRecognition();
@@ -12,7 +14,8 @@ var jabMicInput = $('#jabMicInput');
 var jabStatusMemo = $('#jabStatusMemo');
 var previous_search_page = $('.Previous-Searches');
 var notesList = $('ul#notes');
-
+var locationLat = '';
+var locationLng = '';
 var noteContent = '';
 
 
@@ -22,11 +25,10 @@ var notes = getAllNotes();
 renderHistory(notes);
 
 /*-----------------------------
-      Voice Recognition 
+*Voice Recognition 
 ------------------------------*/
-// If false, stop after a few seconds of silence.
-// When true, stop after about 15 seconds.
-recognition.continuous = false;
+
+recognition.continuous = true;
 
 //RESULT
 recognition.onresult = function(event) {
@@ -143,22 +145,28 @@ function readOutLoud(message) {
   console.log(message);
 }
 //TRIM VOICE COMMAND AS CONCISE SEARCH QUERY
-function getSearchQuery(token){
+function getSearchQuery(token, flag){
   var searchQuery = '';
-  var remove_words = ['find', 'me', 'search', 'look', 'for', 'amazon', 'on','in'];
-  for(var i = 0; i < token.length; i++){
-    for(var j = 0; j < remove_words.length; j++){
-      if(token[i] == remove_words[j]){
+  var remove_words = ['jabit', 'jabet', 'find', 'me', 'search', 'look', 'for', 'Best', 'Buy', 'on', 'in'];
 
-      }else{
-        searchQuery += token[i];
-        if(i != token.length+1){
-          searchQuery += ' ';
-        }
-        break;
-      }
+  for(var i = 0; i < remove_words.length; i++){
+    var index = token.indexOf(remove_words[i]);
+    if(index > -1){
+      token.splice(index, 1);
     }
   }
+  if(flag === "bestbuy"){
+    for(var i = 0; i < token.length; i++){
+      searchQuery += 'search="' + token[i] + '"&';
+    }
+    searchQuery = searchQuery.slice(0, -1);
+  }else{
+    for(var i = 0; i < token.length; i++){
+      searchQuery += token[i];
+      if(i != token.length + 1){searchQuery += ' ';}
+    }
+  }
+  
   searchQuery = $.trim(searchQuery);
   return searchQuery;
 }
@@ -184,26 +192,96 @@ function renderResult(noteContent, mode){
 
   }
   var token = noteContent.split(" ");
+  console.log("============================================");
+  console.log("1. Split a string of voice command ("+ noteContent +") and save into array");
   console.log(token);
 
   //jabit what's the weather today? -> iplocation to get city,state, country -> weather api
   //jabit find ...... in amazon -> amazon
   //jabit ........ - > gogole -> bing
 
-  //AMAZON API
-  if(token[token.length-1] == "amazon"){
-    console.log("search from amazon api");
-    jabit_flag = "amazon";
+  //BESTBUY API
+  if(token[token.length-2] == "Best" && token[token.length-1] == "Buy"){
+    console.log("--> USE BESTBUY API");
+    jabit_flag = "bestbuy";
+
+    var searchQuery = getSearchQuery(token, "bestbuy");
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + searchQuery + ")");
+    var bestbuy_url = "https://api.bestbuy.com/v1/products(";
+    bestbuy_url += searchQuery;
+    bestbuy_url += ")?format=json&show=all&apiKey=1kO0qKSawDbD6k52807WrdaL";
+    //sku,modelNumber,name,salePrice,longDescriptionHtml
+    $.ajax({
+      url: bestbuy_url,
+      type: 'GET',
+      crossDomain:true,
+      datatype: 'jsonp',
+      success: function(response) {
+        console.log("3. RECIEVED RESPONSE AND PRINT OUT");
+        console.log(response); 
+        for(var i=0; i < response.products.length; i++){
+          var item_block = $('<div class="card py-3">');
+          //CREATE TITLE
+          var title = $('<div class="title ">');
+          title.html(response.products[i].name);
+          //CREATE CONTENT
+          var content = $('<div class="content text-dark">');
+          content.html(response.products[i].longDescription);
+  
+          //CREATE LINK
+          var link = $('<a class="link">');
+          //ADD URL IN <A> TAG
+          link.attr('href', response.products[i].url).attr('target','_blank');
+          link.html(title);
+
+          //CREATE DESCRIPTION
+          var description = $('<div class="description">');
+          var description_images = $('<div class="description_images">');
+          var description_image = '';
+          for(var j = 0; j < response.products[i].images.length; j++){
+            if(response.products[i].images[j].width >= 500){
+              description_image= $('<img class="description_image">');
+              description_image.attr('src', response.products[i].images[j].href);
+              description_image.css({'max-width':'150px'});
+              description_images.append(description_image);
+            }
+          }
+          
+          var modelNumber = $('<div class="modelNumber">');
+          modelNumber.html("<span><label>Model Number:</label> " + response.products[i].modelNumber + "</span>");
+          if(response.products[i].regularPrice != response.products[i].salePrice){
+            var price = $('<div class="price">');
+            price.html('<span><label>Reg. Price:</label> <strike>$' + response.products[i].regularPrice + '</strike> <i class="fas fa-long-arrow-alt-right"></i> <b>$' + response.products[i].salePrice + '</b></span>');
+          }else{
+            var price = $('<div class="price">');
+            price.html("<span><label>Price:</label> $" + response.products[i].regularPrice + "</span>");
+          }
+          
+
+
+          
+          description.append(description_images, modelNumber, price);
+  
+          item_block.append(link, content, description);
+          //APPEND EVERTHING IN DISPLAY
+          $('#response_display').append(item_block);
+        }
+      },
+      error: function() { console.log('Failed!'); },
+      
+    });
+    
+
   }
 
   //WEATHER API
   else if(token.indexOf("weather")!= -1){
-    console.log("search from weather api");
+    console.log("--> USE WEATHER API");
     jabit_flag = "weather";
     var default_location = "300 aritum dr, somerset, NJ";
     var location = '';
 
-    var searchQuery = getSearchQuery(token);
+    var searchQuery = getSearchQuery(token, "weather");
 
     var find_index_weather = $.inArray("weather",token);
     for(var i = find_index_weather + 1 ; i < token.length; i++){
@@ -219,24 +297,50 @@ function renderResult(noteContent, mode){
     }else{
       location = default_location;
     }
-    
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + location + ")");
+    console.log("3. CALL MAPQUEST API to get LAT, LNG");
     //SPECIFIC LOCATION
-    $.get("http://www.mapquestapi.com/geocoding/v1/address?key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&location="+encodeURIComponent(location), function (response){
-      console.log(location);
-      console.log("lat: " + response.results[0].locations[0].latLng.lat); 
-      console.log("lng: " + response.results[0].locations[0].latLng.lng); 
+    var mapquestapi_url = "https://www.mapquestapi.com/geocoding/v1/address?";
+    mapquestapi_url += "key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&";
+    mapquestapi_url += "location="+encodeURIComponent(location);
+    $.get(mapquestapi_url, function (response){
+      console.log("LAT: " + response.results[0].locations[0].latLng.lat); 
+      console.log("LNG: " + response.results[0].locations[0].latLng.lng); 
+      locationLat = response.results[0].locations[0].latLng.lat;
+      locationLng = response.results[0].locations[0].latLng.lng;
+      console.log("4. CALL DARK SKY API");
+      var darksky_url = "https://cors-anywhere.herokuapp.com/https://api.darksky.net/forecast/23581296777986e722945e1545c7a64f/";
+      darksky_url += locationLat + "," +locationLng;
+      $.ajax({
+        url: darksky_url,
+        type: 'GET',
+        crossDomain:true,
+        datatype: 'jsonp',
+        success: function(data) { 
+          console.log("5. RECIEVED RESPONSE AND PRINT WEATHER WIDGET");
+          console.log(data); 
+          $('#response_display').html('<iframe id="forecast_embed" frameborder="0" height="245" width="100%" src="//forecast.io/embed/#lat=' + data.latitude + '&lon=' + data.longitude + '&name=' + location + '(' + data.timezone + ')"></iframe>');
+        },
+        error: function() { console.log('Failed!'); },
+        
+      });
     });
   }
 
   //GOOGLE API WITH BING SEARCH ENGINE
   else{
-    console.log("search from GOOGLE & BING api...");
+    console.log("--> USE GOOGLE & BING API");
     jabit_flag = "google";
 
-    var searchQuery = getSearchQuery(token);
-    console.log(searchQuery);
+    var searchQuery = getSearchQuery(token, "google");
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + searchQuery + ")");
 
-    $.get("https://www.googleapis.com/customsearch/v1?key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&cx=014686825535238989090:jwmwr2rnvos&q=" + searchQuery, function(response){
+    var googleapis_url = "https://www.googleapis.com/customsearch/v1?";
+    googleapis_url += "key=AIzaSyBYcRkQhyfSGWEoFH_huxkXJpdgjZNKHQc&";
+    googleapis_url += "cx=014686825535238989090:jwmwr2rnvos&";
+    googleapis_url += "q=" + searchQuery;
+    $.get(googleapis_url, function(response){
+      console.log("3. RECIEVED RESPONSE AND PRINT OUT");
       // console.log(response);
       // console.log(response.items.length);  
       for(var i=0; i < response.items.length; i++){
@@ -260,7 +364,7 @@ function renderResult(noteContent, mode){
       }
     })
   }
-  readOutLoud("OK Jabit is searching for "+ searchQuery);
+  //readOutLoud("OK Jabit is searching for "+ searchQuery);
 }
 //DISPLAY ALL HISTORIES
 function renderHistory(notes) {
