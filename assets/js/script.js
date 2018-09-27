@@ -1,4 +1,5 @@
 console.log("V.1.1");
+
 try {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   var recognition = new SpeechRecognition();
@@ -27,7 +28,7 @@ renderHistory(notes);
 *Voice Recognition 
 ------------------------------*/
 
-recognition.continuous = false;
+recognition.continuous = true;
 
 //RESULT
 recognition.onresult = function(event) {
@@ -144,9 +145,9 @@ function readOutLoud(message) {
   console.log(message);
 }
 //TRIM VOICE COMMAND AS CONCISE SEARCH QUERY
-function getSearchQuery(token){
+function getSearchQuery(token, flag){
   var searchQuery = '';
-  var remove_words = ['jabit', 'jabet', 'find', 'me', 'search', 'look', 'for', 'amazon', 'on', 'in'];
+  var remove_words = ['jabit', 'jabet', 'find', 'me', 'search', 'look', 'for', 'Best', 'Buy', 'on', 'in'];
 
   for(var i = 0; i < remove_words.length; i++){
     var index = token.indexOf(remove_words[i]);
@@ -154,10 +155,18 @@ function getSearchQuery(token){
       token.splice(index, 1);
     }
   }
-  for(var i = 0; i < token.length; i++){
-    searchQuery += token[i];
-    if(i != token.length + 1){searchQuery += ' ';}
+  if(flag === "bestbuy"){
+    for(var i = 0; i < token.length; i++){
+      searchQuery += 'search="' + token[i] + '"&';
+    }
+    searchQuery = searchQuery.slice(0, -1);
+  }else{
+    for(var i = 0; i < token.length; i++){
+      searchQuery += token[i];
+      if(i != token.length + 1){searchQuery += ' ';}
+    }
   }
+  
   searchQuery = $.trim(searchQuery);
   return searchQuery;
 }
@@ -191,12 +200,79 @@ function renderResult(noteContent, mode){
   //jabit find ...... in amazon -> amazon
   //jabit ........ - > gogole -> bing
 
-  //AMAZON API
-  /*if(token[token.length-1] == "amazon"){
-    console.log("--> USE AMAZON API");
-    jabit_flag = "amazon";
-    //NEED TO RUN AT SERVER SIDE
-  }*/
+  //BESTBUY API
+  if(token[token.length-2] == "Best" && token[token.length-1] == "Buy"){
+    console.log("--> USE BESTBUY API");
+    jabit_flag = "bestbuy";
+
+    var searchQuery = getSearchQuery(token, "bestbuy");
+    console.log("2. AFTER TRIM as SEARCH QUERY: (" + searchQuery + ")");
+    var bestbuy_url = "https://api.bestbuy.com/v1/products(";
+    bestbuy_url += searchQuery;
+    bestbuy_url += ")?format=json&show=all&apiKey=1kO0qKSawDbD6k52807WrdaL";
+    //sku,modelNumber,name,salePrice,longDescriptionHtml
+    $.ajax({
+      url: bestbuy_url,
+      type: 'GET',
+      crossDomain:true,
+      datatype: 'jsonp',
+      success: function(response) {
+        console.log("3. RECIEVED RESPONSE AND PRINT OUT");
+        console.log(response); 
+        for(var i=0; i < response.products.length; i++){
+          var item_block = $('<div class="card py-3">');
+          //CREATE TITLE
+          var title = $('<div class="title ">');
+          title.html(response.products[i].name);
+          //CREATE CONTENT
+          var content = $('<div class="content text-dark">');
+          content.html(response.products[i].longDescription);
+  
+          //CREATE LINK
+          var link = $('<a class="link">');
+          //ADD URL IN <A> TAG
+          link.attr('href', response.products[i].url).attr('target','_blank');
+          link.html(title);
+
+          //CREATE DESCRIPTION
+          var description = $('<div class="description">');
+          var description_images = $('<div class="description_images">');
+          var description_image = '';
+          for(var j = 0; j < response.products[i].images.length; j++){
+            if(response.products[i].images[j].width >= 500){
+              description_image= $('<img class="description_image">');
+              description_image.attr('src', response.products[i].images[j].href);
+              description_image.css({'max-width':'150px'});
+              description_images.append(description_image);
+            }
+          }
+          
+          var modelNumber = $('<div class="modelNumber">');
+          modelNumber.html("<span><label>Model Number:</label> " + response.products[i].modelNumber + "</span>");
+          if(response.products[i].regularPrice != response.products[i].salePrice){
+            var price = $('<div class="price">');
+            price.html('<span><label>Reg. Price:</label> <strike>$' + response.products[i].regularPrice + '</strike> <i class="fas fa-long-arrow-alt-right"></i> <b>$' + response.products[i].salePrice + '</b></span>');
+          }else{
+            var price = $('<div class="price">');
+            price.html("<span><label>Price:</label> $" + response.products[i].regularPrice + "</span>");
+          }
+          
+
+
+          
+          description.append(description_images, modelNumber, price);
+  
+          item_block.append(link, content, description);
+          //APPEND EVERTHING IN DISPLAY
+          $('#response_display').append(item_block);
+        }
+      },
+      error: function() { console.log('Failed!'); },
+      
+    });
+    
+
+  }
 
   //WEATHER API
   else if(token.indexOf("weather")!= -1){
@@ -205,7 +281,7 @@ function renderResult(noteContent, mode){
     var default_location = "300 aritum dr, somerset, NJ";
     var location = '';
 
-    var searchQuery = getSearchQuery(token);
+    var searchQuery = getSearchQuery(token, "weather");
 
     var find_index_weather = $.inArray("weather",token);
     for(var i = find_index_weather + 1 ; i < token.length; i++){
@@ -256,7 +332,7 @@ function renderResult(noteContent, mode){
     console.log("--> USE GOOGLE & BING API");
     jabit_flag = "google";
 
-    var searchQuery = getSearchQuery(token);
+    var searchQuery = getSearchQuery(token, "google");
     console.log("2. AFTER TRIM as SEARCH QUERY: (" + searchQuery + ")");
 
     var googleapis_url = "https://www.googleapis.com/customsearch/v1?";

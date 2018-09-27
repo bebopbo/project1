@@ -66,3 +66,6 @@ body {
   #close-history-btn {
       margin-right: 10px;
   }
+  .description .price span{font-size: 1.3rem;font-weight: 600;}
+  
+  .description_image{margin:0 5px;}
