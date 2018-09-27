@@ -160,7 +160,35 @@ function getSearchQuery(token){
   searchQuery = $.trim(searchQuery);
   return searchQuery;
 }
+function sign(key, msg){
+  return CryptoJS.HmacSHA256(key, encodeURIComponent(msg));
+}
+function getSignatureKey(key, dateStamp, regionName, serviceName){
+  var kDate = sign(encodeURIComponent('AWS4'+ key), dateStamp);
+  var kRegion = sign(kDate, regionName);
+  var kService = sign(kRegion, serviceName);
+  var kSigning = sign(kService, 'aws4_request');
+  return kSigning;
+}
+function URLToArray(url) {
+  var request = [];
+  var pairs = url.substring(url.indexOf('?') + 1).split('&');
+  for (var i = 0; i < pairs.length; i++) {
+      if(!pairs[i])
+          continue;
+      var pair = pairs[i].split('=');
+      request[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+   }
+   return request;
+}
+function ArrayToURL(array) {
+  var pairs = [];
+  for (var key in array)
+    if (array.hasOwnProperty(key))
 
+      pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(array[key]));
+  return pairs.join('&');
+}
 /***********************
  * DISPLAY
  ***********************/
@@ -194,6 +222,102 @@ function renderResult(noteContent, mode){
   if(token[token.length-1] == "amazon"){
     console.log("Search from amazon api");
     jabit_flag = "amazon";
+
+
+
+    
+    // console.log("http://webservices.amazon.com/onca/xml?Service=AWSECommerceService&Operation=ItemSearch&AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ&SubscriptionId=ExampleID&SearchIndex=Books&Keywords="+encodeURIComponent("Harry Potter")+"&ResponseGroup="+encodeURIComponent("Images,ItemAttributes,Offers"));
+     var method = 'GET';
+     var service = 'ec2';
+     var host = 'ec2.amazonaws.com';
+     var region = 'us-east-1';
+     var endpoint = 'https://ec2.amazonaws.com';
+     var request_parameters = 'Action=DescribeRegions&Version=2005-10-05';
+     var access_key = 'AKIAI577EEL57ZKAQTGQ';
+    var secret_key = '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';
+    
+    
+     var dt = new Date();
+     var amzdate = dt.toISOString();
+    var datestamp = dt.getFullYear()+''+(dt.getMonth()+1)+''+dt.getDate();
+    
+    
+    var canonical_uri = '/';
+    var canonical_querystring = request_parameters;
+    var canonical_headers = 'host:' + host + '\n' + 'x-amz-date:' + amzdate + '\n';
+    var signed_headers = host+';x-amz-date';
+    
+    var canonical_request = method + '\n' + canonical_uri + '\n' + canonical_querystring + '\n' + canonical_headers + '\n' + signed_headers;//+ '\n' + payload_hash
+    
+     var algorithm = 'AWS4-HMAC-SHA256'
+     var credential_scope = datestamp + '/' + region + '/' + service + '/' + 'aws4_request';
+     var string_to_sign = algorithm + '\n' +  amzdate + '\n' +  credential_scope + '\n' +  CryptoJS.enc.Base64.stringify(CryptoJS.SHA256(encodeURIComponent(canonical_request)));
+    
+     var signing_key = getSignatureKey(secret_key, datestamp, region, service);
+    // //Python
+    //var signature = hmac.new(signing_key, (string_to_sign).encode('utf-8'), hashlib.sha256).hexdigest()
+     var signature = CryptoJS.enc.Base64.stringify(sign(signing_key, string_to_sign));
+     var authorization_header = algorithm + ' ' + 'Credential=' + access_key + '/' + credential_scope + ', ' +  'SignedHeaders=' + signed_headers + ', ' + 'Signature=' + signature
+    
+     var headers = {'x-amz-date':amzdate, 'Authorization':authorization_header}
+    
+     var request_url = endpoint + '?' + canonical_querystring;
+    // console.log(request_url);
+    
+    // var hash = CryptoJS.HmacSHA256("Message", "secret");
+    //   var hashInBase64 = CryptoJS.enc.Base64.stringify(hash);
+    
+    // console.log(HMAC(HMAC(HMAC(HMAC("AWS4" + kSecret,"20150830"),"us-east-1"),"iam"),"aws4_request"));
+    var dt = new Date();
+    var amazonUrl = "http://webservices.amazon.com/onca/xml?";
+    amazonUrl += "AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ";
+    amazonUrl += "&Actor=Johnny%20Depp";
+    amazonUrl += "&Operation=ItemSearch";
+    amazonUrl += "&ResponseGroup="+encodeURIComponent("ItemAttributes,Offers,Images,Reviews,Variations");
+    amazonUrl += "&SearchIndex=DVD";
+    amazonUrl += "&Service=AWSECommerceService";
+    amazonUrl += "&Sort=salesrank";
+    amazonUrl += "&Timestamp="+encodeURIComponent(dt.toISOString());
+    //http://webservices.amazon.co.uk/onca/xml?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Actor=Johnny%20Depp&AssociateTag=mytag-20&Operation=ItemSearch&Operation=ItemSearch&ResponseGroup=ItemAttributes%2COffers%2CImages%2CReviews%2CVariations&SearchIndex=DVD&Service=AWSECommerceService&Sort=salesrank&Timestamp=2014-08-18T17%3A34%3A34.000Z&Version=2013-08-01&Signature=Gv4kWyAAD3xgSGI86I4qZ1zIjAhZYs2H7CRTpeHLD1o%3D
+    // amazonUrl += "AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ";
+    // amazonUrl += "&ItemId=0679722769";
+    // amazonUrl += "&Operation=ItemLookup";
+    // amazonUrl += "&ResponseGroup=Images%2CItemAttributes%2COffers%2CReviews";
+    // amazonUrl += "&Service=AWSECommerceService";
+    // amazonUrl += "&Timestamp="+encodeURIComponent(dt.toISOString());
+    // amazonUrl += "&Version="+encodeURIComponent("2013-08-01");
+    
+    var parameter_array = URLToArray(amazonUrl);
+    parameter_array = ArrayToURL(parameter_array);
+    console.log(parameter_array);
+    var canonical_request = method + '\n' + 'webservices.amazon.com' + '\n' + '/onca/xml' + '\n' + parameter_array;
+    
+    var signature =encodeURIComponent(sign(canonical_request,"sMuCDls8bi16HUc17hCZg20VSbCxxmkWsURGlhNO").toString(CryptoJS.enc.Base64));
+    console.log(signature);
+    amazonUrl += "&Signature="+signature;
+    console.log(amazonUrl);
+    var authorization_header = algorithm + ' ' + 'Credential=' + access_key + '/' + credential_scope + ', ' +  'SignedHeaders=' + signed_headers + ', ' + 'Signature=' + signature
+    // $.get(amazonUrl,function(res){
+    //   console.log(res);
+    // })
+    $.ajax({
+    
+      url: amazonUrl,
+      type: 'GET',
+      crossDomain:true,
+      datatype: 'jsonp',
+      success: function() { console.log("Success"); },
+      error: function() { console.log('Failed!'); },
+      beforeSend: setHeader
+    
+    });
+    function setHeader(xhr) {
+    
+      xhr.setRequestHeader('Authorization', authorization_header);
+    }
+    
+    
+
   }
 
   //WEATHER API
