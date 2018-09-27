@@ -1,3 +1,4 @@
+console.log("V.1.1");
 try {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   var recognition = new SpeechRecognition();
@@ -220,7 +221,7 @@ function renderResult(noteContent, mode){
 
   //AMAZON API
   if(token[token.length-1] == "amazon"){
-    console.log("Search from amazon api");
+    console.log("--> USE AMAZON API");
     jabit_flag = "amazon";
 
 
@@ -233,8 +234,8 @@ function renderResult(noteContent, mode){
      var region = 'us-east-1';
      var endpoint = 'https://ec2.amazonaws.com';
      var request_parameters = 'Action=DescribeRegions&Version=2005-10-05';
-     var access_key = 'AKIAI577EEL57ZKAQTGQ';
-    var secret_key = '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';
+     var access_key = 'AKIAJTMVJEEQEDZEQMBQ';
+    var secret_key = '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';
     
     
      var dt = new Date();
@@ -270,7 +271,7 @@ function renderResult(noteContent, mode){
     // console.log(HMAC(HMAC(HMAC(HMAC("AWS4" + kSecret,"20150830"),"us-east-1"),"iam"),"aws4_request"));
     var dt = new Date();
     var amazonUrl = "https://webservices.amazon.com/onca/xml?";
-    amazonUrl += "AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ";
+    amazonUrl += "AWSAccessKeyId=AKIAJTMVJEEQEDZEQMBQ";
     amazonUrl += "&Actor=Johnny%20Depp";
     amazonUrl += "&Operation=ItemSearch";
     amazonUrl += "&ResponseGroup="+encodeURIComponent("ItemAttributes,Offers,Images,Reviews,Variations");
@@ -279,7 +280,7 @@ function renderResult(noteContent, mode){
     amazonUrl += "&Sort=salesrank";
     amazonUrl += "&Timestamp="+encodeURIComponent(dt.toISOString());
     //http://webservices.amazon.co.uk/onca/xml?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Actor=Johnny%20Depp&AssociateTag=mytag-20&Operation=ItemSearch&Operation=ItemSearch&ResponseGroup=ItemAttributes%2COffers%2CImages%2CReviews%2CVariations&SearchIndex=DVD&Service=AWSECommerceService&Sort=salesrank&Timestamp=2014-08-18T17%3A34%3A34.000Z&Version=2013-08-01&Signature=Gv4kWyAAD3xgSGI86I4qZ1zIjAhZYs2H7CRTpeHLD1o%3D
-    // amazonUrl += "AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ";
+    // amazonUrl += "AWSAccessKeyId=AKIAJTMVJEEQEDZEQMBQ";
     // amazonUrl += "&ItemId=0679722769";
     // amazonUrl += "&Operation=ItemLookup";
     // amazonUrl += "&ResponseGroup=Images%2CItemAttributes%2COffers%2CReviews";
@@ -292,7 +293,7 @@ function renderResult(noteContent, mode){
     console.log(parameter_array);
     var canonical_request = method + '\n' + 'webservices.amazon.com' + '\n' + '/onca/xml' + '\n' + parameter_array;
     
-    var signature =encodeURIComponent(sign(canonical_request,"sMuCDls8bi16HUc17hCZg20VSbCxxmkWsURGlhNO").toString(CryptoJS.enc.Base64));
+    var signature =encodeURIComponent(sign(canonical_request,"+vK6z47Klorr1b+APikmGubGILsVBKGGmmHpd99W").toString(CryptoJS.enc.Base64));
     console.log(signature);
     amazonUrl += "&Signature="+signature;
     console.log(amazonUrl);
