@@ -222,7 +222,7 @@ function renderResult(noteContent, mode){
     console.log("2. AFTER TRIM as SEARCH QUERY: (" + location + ")");
     console.log("3. CALL MAPQUEST API to get LAT, LNG");
     //SPECIFIC LOCATION
-    var mapquestapi_url = "http://www.mapquestapi.com/geocoding/v1/address?";
+    var mapquestapi_url = "https://www.mapquestapi.com/geocoding/v1/address?";
     mapquestapi_url += "key=jgr5TBavIY3iQTC45biQIWUv126VTAGH&";
     mapquestapi_url += "location="+encodeURIComponent(location);
     $.get(mapquestapi_url, function (response){
