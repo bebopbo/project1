@@ -269,7 +269,7 @@ function renderResult(noteContent, mode){
     
     // console.log(HMAC(HMAC(HMAC(HMAC("AWS4" + kSecret,"20150830"),"us-east-1"),"iam"),"aws4_request"));
     var dt = new Date();
-    var amazonUrl = "http://webservices.amazon.com/onca/xml?";
+    var amazonUrl = "https://webservices.amazon.com/onca/xml?";
     amazonUrl += "AWSAccessKeyId=AKIAI577EEL57ZKAQTGQ";
     amazonUrl += "&Actor=Johnny%20Depp";
     amazonUrl += "&Operation=ItemSearch";
